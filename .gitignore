@@ -1,0 +1,11 @@
+.env
+venv/
+.DS_Store
+.idea/
+__pycache__/
+.pytest_cache
+out/
+local/
+*.db
+*.log
+.venv/

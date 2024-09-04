@@ -1,0 +1,56 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./tools/Dockerfile
+    platform: linux/amd64
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_DATABASE_NAME=${POSTGRES_DATABASE_NAME}
+      - POSTGRES_DATABASE_USERNAME=${POSTGRES_DATABASE_USERNAME}
+      - POSTGRES_DATABASE_PASSWORD=${POSTGRES_DATABASE_PASSWORD}
+      - POSTGRES_DATABASE_HOST=${POSTGRES_DATABASE_HOST}
+      - POSTGRES_DATABASE_PORT=${POSTGRES_DATABASE_PORT}
+      - JWT_TOKEN_ALGORITHM=${JWT_TOKEN_ALGORITHM}
+      - JWT_TOKEN_SECRET_KEY=${JWT_TOKEN_SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRY_MINUTES=${ACCESS_TOKEN_EXPIRY_MINUTES}
+      - REFRESH_TOKEN_EXPIRY_DAYS=${REFRESH_TOKEN_EXPIRY_DAYS}
+      - FRONTEND_APP_BASE_URL=${FRONTEND_APP_BASE_URL}
+      - FRONTEND_APP_SUB_URL=${FRONTEND_APP_SUB_URL}
+      - BASE_EMAIL=${BASE_EMAIL}
+      - BASE_EMAIL_APP_PASSWORD=${BASE_EMAIL_APP_PASSWORD}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - OPENAI_API_TYPE=${OPENAI_API_TYPE}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - R2R_SEARCH_API=${R2R_SEARCH_API}
+      - PGVECTOR_COLLECTION_NAME=${PGVECTOR_COLLECTION_NAME}
+  r2r:
+    image: emrgntcmplxty/r2r:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DBNAME=${POSTGRES_DBNAME}
+      - POSTGRES_VECS_COLLECTION=${POSTGRES_VECS_COLLECTION}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres:
+    image: ankane/pgvector
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
+    driver: local
