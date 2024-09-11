@@ -1,6 +1,7 @@
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
+from fastapi.datastructures import UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 
@@ -14,6 +15,7 @@ from lib.crud import (
 from lib.helper import (
     Dataset,
     DatasetRequest,
+    DocumentParser,
     RoleCache,
     User,
     UserRoleUpdate,
@@ -111,7 +113,7 @@ async def get_all_datasets():
     for dataset, username in datasets_with_username:
         datasets.append(
             Dataset(
-                id=dataset.id,
+                id=str(dataset.id),
                 name=dataset.name,
                 description=dataset.description,
                 status=dataset.status,
@@ -126,15 +128,27 @@ async def get_all_datasets():
     summary="Upload a dataset",
     tags=["datasets"],
 )
-async def post_dataset(request: Request, dataset_request: DatasetRequest):
+async def post_dataset(
+    request: Request,
+    dataset_request: DatasetRequest,
+    files: List[UploadFile],
+    document_parser: Annotated[DocumentParser, Depends(DocumentParser)],
+):
     _, token = request.headers.get("authorization").split()
     user_name, _ = decode_token(token=token)
     user = await get_user_from_username(username=user_name)
-    # TODO: JOIN BOTH TABLE INSERTS (IN PROGRESS)
-    dataset = await create_dataset(
+    documents = []
+    for file in files:
+        parsed_content = document_parser.parse_file(file)
+        documents.append({"file_name": file.filename, "content": parsed_content})
+    await create_dataset(
         name=dataset_request.name,
         description=dataset_request.description,
         created_by=user.id,
+        documents_list=documents,
+    )
+    return JSONResponse(
+        content={"detail": "Dataset upload is successful"},
     )
 
 

@@ -53,8 +53,11 @@ async def get_all_roles() -> List[Role]:
 
 
 async def get_user_roles():
-    query = select(User, UserRole.role_id.label("role_id")).join(
-        UserRole, User.id == UserRole.user_id
+    query = (
+        select(User, UserRole.role_id.label("role_id"))
+        .join(UserRole, User.id == UserRole.user_id)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(Role.name != "Admin")
     )
     async with async_session() as session:
         async with session.begin():
@@ -98,13 +101,25 @@ async def create_user(
             session.add(user_role)
 
 
-async def create_dataset(name: str, description: str, created_by: str) -> Dataset:
+async def create_dataset(
+    name: str, description: str, created_by: str, documents_list: list
+):
+    documents = []
     dataset = Dataset(name=name, description=description, created_by=created_by)
     async with async_session() as session:
         async with session.begin():
             session.add(dataset)
+            await session.flush()
+            for document in documents_list:
+                documents.append(
+                    Document(
+                        dataset_id=dataset.id,
+                        name=document["file_name"],
+                        content=document["content"],
+                    )
+                )
+            session.add_all(documents)
             await session.commit()
-            return dataset
 
 
 async def set_last_logged_in(username: str, last_logged_in: str):

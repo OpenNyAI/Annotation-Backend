@@ -1,10 +1,14 @@
+import json
 import os
+import tempfile
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from enum import Enum
 from smtplib import SMTP
 from typing import List, Optional
 
+import docx2txt
+import fitz
 from fastapi import HTTPException, status
 from fastapi.datastructures import UploadFile
 from jinja2 import Template
@@ -160,7 +164,6 @@ class UserRoleUpdate(BaseModel):
 class DatasetRequest(BaseModel):
     name: str
     description: str
-    files: List[UploadFile]
 
 
 class Dataset(BaseModel):
@@ -189,6 +192,53 @@ class RoleCache:
         for role in cls.roles:
             if role["role_name"] == role_name:
                 return role["role_id"]
+
+
+class DocumentParser:
+    _instance = None
+    parsers = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DocumentParser, cls).__new__(cls)
+        cls.parsers = {
+            ".pdf": cls.pdf_parser,
+            ".docx": cls.docx_parser,
+            ".json": cls.json_parser,
+        }
+        return cls._instance
+
+    @classmethod
+    def parse_file(cls, file: UploadFile) -> str:
+        file_extension = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(
+            suffix=file_extension,
+        ) as temp_file:
+            content = file.file.read()
+            temp_file.write(content)
+            file_path = temp_file.name
+            parser = cls.parsers.get(file_extension, cls.default_parser)
+            return parser(file_path)
+
+    @classmethod
+    def docx_parser(cls, docx_file_path: str):
+        return docx2txt.process(docx_file_path)
+
+    @classmethod
+    def pdf_parser(cls, pdf_file_path: str):
+        doc = fitz.open(pdf_file_path)
+        return "\n".join(page.get_text("text") for page in doc)
+
+    @classmethod
+    def json_parser(cls, json_file_path: str):
+        with open(json_file_path, "r") as file:
+            data = json.load(file)
+        return json.dumps(data, indent=4)
+
+    @classmethod
+    def default_parser(cls, file_path: str):
+        with open(file_path, "r") as file:
+            return file.read()
 
 
 def get_hashed_password(password: str) -> str:
