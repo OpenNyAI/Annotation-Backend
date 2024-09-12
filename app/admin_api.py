@@ -8,13 +8,14 @@ from fastapi.security import HTTPBearer
 from lib.crud import (
     create_dataset,
     get_datasets,
+    get_documents_from_dataset_id,
     get_user_from_username,
     get_user_roles,
     update_user_roles,
 )
 from lib.helper import (
     Dataset,
-    DatasetRequest,
+    DocumentInformation,
     DocumentParser,
     RoleCache,
     User,
@@ -123,6 +124,28 @@ async def get_all_datasets():
     return datasets
 
 
+@protected_router.get(
+    "/datasets/{dataset_id}",
+    summary="Get a dataset with dataset-id",
+    tags=["datasets"],
+)
+async def get_dataset_from_id(dataset_id: str):
+    documents = await get_documents_from_dataset_id(dataset_id=dataset_id)
+    datasets = []
+    for document in documents:
+        datasets.append(
+            DocumentInformation(
+                id=str(document[0]),
+                file_name=document[1],
+                size=document[2],
+                status=document[3],
+                annotator=document[4],
+                reviewer=document[5],
+            )
+        )
+    return datasets
+
+
 @protected_router.post(
     "/datasets",
     summary="Upload a dataset",
@@ -130,7 +153,8 @@ async def get_all_datasets():
 )
 async def post_dataset(
     request: Request,
-    dataset_request: DatasetRequest,
+    dataset_name: str,
+    dataset_description: str,
     files: List[UploadFile],
     document_parser: Annotated[DocumentParser, Depends(DocumentParser)],
 ):
@@ -140,10 +164,12 @@ async def post_dataset(
     documents = []
     for file in files:
         parsed_content = document_parser.parse_file(file)
-        documents.append({"file_name": file.filename, "content": parsed_content})
+        documents.append(
+            {"file_name": file.filename, "size": file.size, "content": parsed_content}
+        )
     await create_dataset(
-        name=dataset_request.name,
-        description=dataset_request.description,
+        name=dataset_name,
+        description=dataset_description,
         created_by=user.id,
         documents_list=documents,
     )

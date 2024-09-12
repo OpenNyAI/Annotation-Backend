@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 from sqlalchemy import asc, delete, desc, func, insert, select, update
+from sqlalchemy.orm import aliased
 
 from .db_connection import async_session
 from .models import (
@@ -115,6 +116,7 @@ async def create_dataset(
                     Document(
                         dataset_id=dataset.id,
                         name=document["file_name"],
+                        size=document["size"],
                         content=document["content"],
                     )
                 )
@@ -190,6 +192,31 @@ async def get_datasets():
             result = await session.execute(query)
             datasets_with_username = result.fetchall()
             return datasets_with_username
+
+
+async def get_documents_from_dataset_id(dataset_id: str):
+    annotator = aliased(User)
+    reviewer = aliased(User)
+    query = (
+        select(
+            Document.id,
+            Document.name,
+            Document.size,
+            Document.status,
+            annotator.username.label("annotator_username"),
+            reviewer.username.label("reviewer_username"),
+        )
+        .outerjoin(annotator, Document.annotator == annotator.id)
+        .outerjoin(reviewer, Document.reviewer == reviewer.id)
+        .where(Document.dataset_id == dataset_id)
+        .order_by(asc(Document.name))
+    )
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.execute(query)
+            documents_with_usernames = result.fetchall()
+            return documents_with_usernames
+    return None
 
 
 async def get_documents() -> List[Document]:

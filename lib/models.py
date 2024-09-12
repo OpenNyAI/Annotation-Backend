@@ -33,8 +33,23 @@ class User(Base):
     datasets = relationship(
         "Dataset", back_populates="user", cascade="all, delete-orphan"
     )
-    documents = relationship(
-        "Document", back_populates="user", cascade="all, delete-orphan"
+    annotated_documents = relationship(
+        "Document",
+        back_populates="annotator_user",
+        foreign_keys="Document.annotator",
+        cascade="all, delete-orphan",
+    )
+    reviewed_documents = relationship(
+        "Document",
+        back_populates="reviewer_user",
+        foreign_keys="Document.reviewer",
+        cascade="all, delete-orphan",
+    )
+    edited_documents = relationship(
+        "Document",
+        back_populates="editor_user",
+        foreign_keys="Document.last_edited_by",
+        cascade="all, delete-orphan",
     )
     reset_passwords = relationship(
         "ResetPassword", back_populates="user", cascade="all, delete-orphan"
@@ -82,17 +97,26 @@ class Document(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     dataset_id = Column(UUID(as_uuid=True), ForeignKey("datasets.id"))
     name = Column(String, nullable=False)
+    size = Column(Integer, nullable=False)
     content = Column(String, nullable=False)
+    annotator = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewer = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     number_of_queries = Column(Integer, default=0)
-    status = Column(
-        String, nullable=False, default="Annotation"
-    )  # Annotation | Review
+    status = Column(String, nullable=False, default="Annotation")  # Annotation | Review
     created_at = Column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
     last_edited_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     last_edited_at = Column(TIMESTAMP(timezone=True))
-    user = relationship("User", back_populates="documents")
+    annotator_user = relationship(
+        "User", back_populates="annotated_documents", foreign_keys=[annotator]
+    )
+    reviewer_user = relationship(
+        "User", back_populates="reviewed_documents", foreign_keys=[reviewer]
+    )
+    editor_user = relationship(
+        "User", back_populates="edited_documents", foreign_keys=[last_edited_by]
+    )
     dataset = relationship("Dataset", back_populates="documents")
 
 

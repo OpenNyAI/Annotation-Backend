@@ -85,6 +85,13 @@ class BaseDocument(BaseModel):
     file_name: str
 
 
+class DocumentInformation(BaseDocument):
+    size: int
+    status: str
+    annotator: Optional[str]
+    reviewer: Optional[str]
+
+
 class Document(BaseDocument):
     last_edited_by: str | None
     number_of_questions: int
@@ -159,11 +166,6 @@ class User(BaseModel):
 class UserRoleUpdate(BaseModel):
     user_id: str
     role_id: str
-
-
-class DatasetRequest(BaseModel):
-    name: str
-    description: str
 
 
 class Dataset(BaseModel):
