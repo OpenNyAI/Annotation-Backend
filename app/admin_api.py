@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
@@ -5,18 +6,22 @@ from fastapi.datastructures import UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 
+from indexer.indexing import LangchainIndexer
 from lib.crud import (
     create_dataset,
     get_datasets,
     get_documents_from_dataset_id,
+    get_documents_info_from_dataset_id,
     get_user_from_username,
     get_user_roles,
+    set_indexed_status_to_dataset,
     update_user_roles,
 )
 from lib.helper import (
     Dataset,
     DocumentInformation,
     DocumentParser,
+    IndexRequest,
     RoleCache,
     User,
     UserRoleUpdate,
@@ -130,7 +135,7 @@ async def get_all_datasets():
     tags=["datasets"],
 )
 async def get_dataset_from_id(dataset_id: str):
-    documents = await get_documents_from_dataset_id(dataset_id=dataset_id)
+    documents = await get_documents_info_from_dataset_id(dataset_id=dataset_id)
     datasets = []
     for document in documents:
         datasets.append(
@@ -175,6 +180,29 @@ async def post_dataset(
     )
     return JSONResponse(
         content={"detail": "Dataset upload is successful"},
+    )
+
+
+@protected_router.post("/indexing", summary="Index a dataset", tags=["datasets"])
+async def indexing(
+    index_request: IndexRequest,
+    langchain_indexer: Annotated[LangchainIndexer, Depends(LangchainIndexer)],
+):
+    os.environ["OPENAI_API_TYPE"] = "openai"
+    os.environ["OPENAI_API_KEY"] = index_request.openai_api_key
+    documents, dataset_name = await get_documents_from_dataset_id(
+        dataset_id=index_request.dataset_id
+    )
+    await langchain_indexer.index(
+        collection_name=dataset_name,
+        chunk_size=index_request.chunk_size,
+        chunk_overlap_size=index_request.chunk_overlap_size,
+        files_list=documents,
+    )
+    # TODO: send a mail to admin about the indexing
+    await set_indexed_status_to_dataset(dataset_id=index_request.dataset_id)
+    return JSONResponse(
+        content={"detail": "Dataset indexing is successful"},
     )
 
 

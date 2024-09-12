@@ -194,7 +194,7 @@ async def get_datasets():
             return datasets_with_username
 
 
-async def get_documents_from_dataset_id(dataset_id: str):
+async def get_documents_info_from_dataset_id(dataset_id: str):
     annotator = aliased(User)
     reviewer = aliased(User)
     query = (
@@ -216,6 +216,28 @@ async def get_documents_from_dataset_id(dataset_id: str):
             result = await session.execute(query)
             documents_with_usernames = result.fetchall()
             return documents_with_usernames
+    return None
+
+
+async def get_documents_from_dataset_id(dataset_id: str):
+    query = (
+        select(
+            Document.name,
+            Document.content,
+        )
+        .where(Document.dataset_id == dataset_id)
+        .order_by(asc(Document.name))
+    )
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.execute(query)
+            documents = result.fetchall()
+
+            result = await session.execute(
+                select(Dataset.name).where(Dataset.id == dataset_id)
+            )
+            dataset_name = result.scalars().first()
+            return (documents, dataset_name)
     return None
 
 
@@ -304,6 +326,14 @@ async def set_flag_to_query(qna_id: str, is_flagged: bool):
     async with async_session() as session:
         async with session.begin():
             query = update(QnA).where(QnA.id == qna_id).values(is_flagged=is_flagged)
+            await session.execute(query)
+            await session.commit()
+
+
+async def set_indexed_status_to_dataset(dataset_id: str):
+    async with async_session() as session:
+        async with session.begin():
+            query = update(Dataset).where(Dataset.id == dataset_id).values(status="Indexed")
             await session.execute(query)
             await session.commit()
 

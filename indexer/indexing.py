@@ -1,5 +1,3 @@
-import asyncio
-import json
 import os
 
 import asyncpg
@@ -14,11 +12,6 @@ load_dotenv()
 
 class LangchainIndexer:
     def __init__(self):
-        self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size=4 * 1024,
-            chunk_overlap=200,
-            separators=["\n\n", "\n", ".", " ", ""],
-        )
         self.db_name = os.getenv("POSTGRES_DATABASE_NAME")
         self.db_user = os.getenv("POSTGRES_DATABASE_USERNAME")
         self.db_password = os.getenv("POSTGRES_DATABASE_PASSWORD")
@@ -46,18 +39,30 @@ class LangchainIndexer:
         finally:
             await connection.close()
 
-    async def index(self, collection_name: str, files_dict: dict):
+    async def index(
+        self,
+        collection_name: str,
+        chunk_size: int,
+        chunk_overlap_size: int,
+        files_list: list,
+    ):
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap_size,
+            separators=["\n\n", "\n", ".", " ", ""],
+        )
         source_chunks = []
         counter = 1
-        content = files_dict["content"]
-        file_name = files_dict["name"]
-        for chunk in self.splitter.split_text(content):
-            new_metadata = {
-                "chunk_id": str(counter),
-                "file_name": file_name,
-            }
-            source_chunks.append(Document(page_content=chunk, metadata=new_metadata))
-            counter += 1
+        for file in files_list:
+            file_name = file[0]
+            content = file[1]
+            for chunk in splitter.split_text(content):
+                new_metadata = {
+                    "chunk_id": str(counter),
+                    "file_name": file_name,
+                }
+                source_chunks.append(Document(page_content=chunk, metadata=new_metadata))
+                counter += 1
         try:
             if os.environ["OPENAI_API_TYPE"] == "azure":
                 embeddings = AzureOpenAIEmbeddings(
@@ -83,18 +88,3 @@ class LangchainIndexer:
             print("Indexing done!")
         except Exception as e:
             raise Exception(e.__str__())
-
-
-def load_from_json(filename):
-    with open(filename, "r") as json_file:
-        data = json.load(json_file)
-    return data
-
-
-# TODO: fix temporary indexing script
-document_info = load_from_json("document_info.json")
-langchain_indexer = LangchainIndexer()
-for document in document_info:
-    asyncio.run(
-        langchain_indexer.index(collection_name="Annotation", files_dict=document)
-    )

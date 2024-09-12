@@ -80,6 +80,13 @@ class FlagQueryRequest(BaseModel):
     is_flagged: bool
 
 
+class IndexRequest(BaseModel):
+    dataset_id: str
+    openai_api_key: str
+    chunk_size: int
+    chunk_overlap_size: int
+
+
 class BaseDocument(BaseModel):
     id: str
     file_name: str
