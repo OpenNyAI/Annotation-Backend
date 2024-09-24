@@ -181,6 +181,7 @@ class Dataset(BaseModel):
     description: str
     status: str
     created_by: str
+    created_at: datetime
 
 
 class RoleCache:

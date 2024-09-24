@@ -125,6 +125,7 @@ async def get_all_datasets():
                 description=dataset.description,
                 status=dataset.status,
                 created_by=username,
+                created_at=dataset.created_at
             )
         )
     return datasets
