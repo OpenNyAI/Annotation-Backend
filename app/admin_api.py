@@ -22,6 +22,7 @@ from lib.helper import (
     DocumentInformation,
     DocumentParser,
     IndexRequest,
+    Mailer,
     RoleCache,
     User,
     UserRoleUpdate,
@@ -185,8 +186,10 @@ async def post_dataset(
 
 @protected_router.post("/indexing", summary="Index a dataset", tags=["datasets"])
 async def indexing(
+    request: Request,
     index_request: IndexRequest,
     langchain_indexer: Annotated[LangchainIndexer, Depends(LangchainIndexer)],
+    mailer: Annotated[Mailer, Depends(Mailer)],
 ):
     os.environ["OPENAI_API_TYPE"] = "openai"
     os.environ["OPENAI_API_KEY"] = index_request.openai_api_key
@@ -199,7 +202,15 @@ async def indexing(
         chunk_overlap_size=index_request.chunk_overlap_size,
         files_list=documents,
     )
-    # TODO: send a mail to admin about the indexing
+    _, token = request.headers.get("authorization").split()
+    user_name, _ = decode_token(token=token)
+    user = await get_user_from_username(username=user_name)
+    await mailer.send_indexing_email(
+        recepient_email=user.email,
+        recepient_name=user.name,
+        dataset_name=dataset_name,
+        dataset_id=index_request.dataset_id,
+    )
     await set_indexed_status_to_dataset(dataset_id=index_request.dataset_id)
     return JSONResponse(
         content={"detail": "Dataset indexing is successful"},

@@ -324,101 +324,289 @@ async def compare_chunks(chunk_one, chunk_two, chunk_three):
     return ans_list
 
 
-# TODO: make it generic
-async def send_email(
-    recepient_email: str, recepient_name: str, reset_id: str, verification_code: str
-):
-    verification_link = (
-        f"{app_base_url}/{app_sub_url}?reset_id={reset_id}"
-        f"&verification_code={verification_code}"
-    )
-    server = SMTP(smtp_host, smtp_port)
-    server.starttls()
-    server.login(base_email, base_email_app_password)
-    message = EmailMessage()
-    html_template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-        }
-        .container {
-            padding: 20px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0px 0px 5px 2px gray;
-        }
-        .header {
-            color: #333;
-            font-size: 24px;
-            text-align: center;
-        }
-        .content {
-            color: #1c1c1c;
-            font-size: 18px;
-            margin-top: 20px;
-            text-align: center;
-        }
-        .verification-link {
-            color: black;
-            font-family: Roboto-Regular, Helvetica, Arial, sans-serif;
-            font-size: 24px;
-            text-align: center;
-        }
-        .signature {
-            font-size: 17px;
-            margin-top: 40px;
-            text-align: center;
-        }
-        .do-not-reply {
-            color: red;
-            font-style: italic;
-            font-size: 12px;
-            margin-top: 30px;
-            text-align: center;
-        }
-        a:link {
-            color: blue;
-        }
-        a:visited {
-            color: purple;
-        }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-        <div class="header">Hi {{recepient_name}}!</div>
-        <div class="content">
-            <p>
-            Forgot your password?<br />We received a request to reset the password
-            for your account.<br /><br />To reset your password, please click on
-            the link given below:
-            </p>
-        </div>
-        <div class="verification-link">
-            <a href={{verification_link}}>Password Reset</a>
-        </div>
-        <div class="content">
-            <p>This password reset link is only valid for the next 15 minutes.</p>
-            <p>If you didn't make this request, please ignore this email.</p>
-        </div>
-        <div class="signature">Thanks,<br />OpenNyAI team.</div>
-        <div class="do-not-reply">Note: Please do not reply to this mail.</div>
-        </div>
-    </body>
-    </html>
-    """
-    template = Template(html_template)
-    html_content = template.render(
-        recepient_name=recepient_name, verification_link=verification_link
-    )
-    message.add_alternative(html_content, subtype="html")
-    message["Subject"] = "Password Reset Code"
-    message["From"] = base_email
-    message["To"] = recepient_email
+class Mailer:
+    _instance = None
+    server = None
 
-    server.send_message(message)
-    server.quit()
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Mailer, cls).__new__(cls)
+            cls._init_server()
+        return cls._instance
+
+    @classmethod
+    def _init_server(cls):
+        cls.server = SMTP(smtp_host, smtp_port)
+        cls.server.starttls()
+        cls.server.login(base_email, base_email_app_password)
+
+    @classmethod
+    def _send_email(cls, recepient_email: str, subject: str, html_content: str):
+        message = EmailMessage()
+        message.add_alternative(html_content, subtype="html")
+        message["Subject"] = subject
+        message["From"] = base_email
+        message["To"] = recepient_email
+        cls.server.send_message(message)
+
+    @classmethod
+    def _render_template(cls, template_str: str, **kwargs) -> str:
+        template = Template(template_str)
+        return template.render(**kwargs)
+
+    @classmethod
+    async def send_email(
+        cls, recepient_email: str, subject: str, template: str, **kwargs
+    ):
+        html_content = cls._render_template(template, **kwargs)
+        cls._send_email(recepient_email, subject, html_content)
+
+    @classmethod
+    async def send_reset_password_email(
+        cls,
+        recepient_email: str,
+        recepient_name: str,
+        reset_id: str,
+        verification_code: str,
+    ):
+        verification_link = (
+            f"{app_base_url}/{app_sub_url}?reset_id={reset_id}"
+            f"&verification_code={verification_code}"
+        )
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f2f2f2;
+            }
+            .container {
+                padding: 20px;
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0px 0px 5px 2px gray;
+            }
+            .header {
+                color: #333;
+                font-size: 24px;
+                text-align: center;
+            }
+            .content {
+                color: #1c1c1c;
+                font-size: 18px;
+                margin-top: 20px;
+                text-align: center;
+            }
+            .verification-link {
+                color: black;
+                font-family: Roboto-Regular, Helvetica, Arial, sans-serif;
+                font-size: 24px;
+                text-align: center;
+            }
+            .signature {
+                font-size: 17px;
+                margin-top: 40px;
+                text-align: center;
+            }
+            .do-not-reply {
+                color: red;
+                font-style: italic;
+                font-size: 12px;
+                margin-top: 30px;
+                text-align: center;
+            }
+            a:link {
+                color: blue;
+            }
+            a:visited {
+                color: purple;
+            }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+            <div class="header">Hi {{recepient_name}}!</div>
+            <div class="content">
+                <p>
+                Forgot your password?<br />We received a request to reset the password
+                for your account.<br /><br />To reset your password, please click on
+                the link given below:
+                </p>
+            </div>
+            <div class="verification-link">
+                <a href={{verification_link}}>Password Reset</a>
+            </div>
+            <div class="content">
+                <p>This password reset link is only valid for the next 15 minutes.</p>
+                <p>If you didn't make this request, please ignore this email.</p>
+            </div>
+            <div class="signature">Thanks,<br />OpenNyAI team.</div>
+            <div class="do-not-reply">Note: Please do not reply to this mail.</div>
+            </div>
+        </body>
+        </html>
+        """
+        await cls.send_email(
+            recepient_email,
+            "Password Reset Code",
+            html_template,
+            recepient_name=recepient_name,
+            verification_link=verification_link,
+        )
+
+    @classmethod
+    async def send_indexing_email(
+        cls,
+        recepient_email: str,
+        recepient_name: str,
+        dataset_name: str,
+        dataset_id: str,
+    ):
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f2f2f2;
+            }
+            .container {
+                padding: 20px;
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0px 0px 5px 2px gray;
+            }
+            .header {
+                color: #333;
+                font-size: 24px;
+                text-align: center;
+            }
+            .content {
+                color: #1c1c1c;
+                font-size: 20px;
+                margin-top: 20px;
+                text-align: center;
+            }
+            .signature {
+                font-size: 17px;
+                margin-top: 40px;
+                text-align: center;
+            }
+            .do-not-reply {
+                color: red;
+                font-style: italic;
+                font-size: 12px;
+                margin-top: 30px;
+                text-align: center;
+            }
+            a:link {
+                color: blue;
+            }
+            a:visited {
+                color: purple;
+            }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+            <div class="header">Hi {{recepient_name}}!</div>
+            <div class="content">
+                The indexing for your dataset <b>{{dataset_name}}</b> with ID <b>{{dataset_id}}</b> is done!
+            </div>
+            <div class="signature">Thanks,<br />OpenNyAI team.</div>
+            <div class="do-not-reply">Note: Please do not reply to this mail.</div>
+            </div>
+        </body>
+        </html>
+        """
+        await cls.send_email(
+            recepient_email,
+            "Indexing is done!",
+            html_template,
+            recepient_name=recepient_name,
+            dataset_name=dataset_name,
+            dataset_id=dataset_id,
+        )
+
+    @classmethod
+    async def send_document_assignment_email(
+        cls,
+        recepient_email: str,
+        recepient_name: str,
+        document_name: str,
+        role: str,
+    ):
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f2f2f2;
+            }
+            .container {
+                padding: 20px;
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0px 0px 5px 2px gray;
+            }
+            .header {
+                color: #333;
+                font-size: 24px;
+                text-align: center;
+            }
+            .content {
+                color: #1c1c1c;
+                font-size: 20px;
+                margin-top: 20px;
+                text-align: center;
+            }
+            .signature {
+                font-size: 17px;
+                margin-top: 40px;
+                text-align: center;
+            }
+            .do-not-reply {
+                color: red;
+                font-style: italic;
+                font-size: 12px;
+                margin-top: 30px;
+                text-align: center;
+            }
+            a:link {
+                color: blue;
+            }
+            a:visited {
+                color: purple;
+            }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+            <div class="header">Hi {{recepient_name}}!</div>
+            <div class="content">
+                You have been assigned the document <b>{{document_name}}</b> at the <b>{{role}}</b> role by your admin!
+            </div>
+            <div class="signature">Thanks,<br />OpenNyAI team.</div>
+            <div class="do-not-reply">Note: Please do not reply to this mail.</div>
+            </div>
+        </body>
+        </html>
+        """
+        await cls.send_email(
+            recepient_email,
+            "You have been assigned a document!",
+            html_template,
+            recepient_name=recepient_name,
+            document_name=document_name,
+            role=role,
+        )
+
+    @classmethod
+    def quit(cls):
+        if cls.server:
+            cls.server.quit()

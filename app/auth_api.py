@@ -24,6 +24,7 @@ from lib.crud import (
     update_user_password,
 )
 from lib.helper import (
+    Mailer,
     ResetPasswordRequest,
     RoleCache,
     SignupRequest,
@@ -32,7 +33,6 @@ from lib.helper import (
     create_token,
     decode_token,
     get_hashed_password,
-    send_email,
     verify_password,
 )
 
@@ -181,7 +181,10 @@ def valid_token(authorization: HTTPAuthorizationCredentials = Depends(HTTPBearer
     summary="Reset user password",
     tags=["Authentication"],
 )
-async def reset_password(reset_password_request: ResetPasswordRequest):
+async def reset_password(
+    reset_password_request: ResetPasswordRequest,
+    mailer: Annotated[Mailer, Depends(Mailer)],
+):
     email = reset_password_request.email
     user = await get_user_from_email(email=email)
     if user is None:
@@ -199,7 +202,7 @@ async def reset_password(reset_password_request: ResetPasswordRequest):
         verification_code=verification_code,
         expiry_time=expiry_time,
     )
-    await send_email(
+    await mailer.send_reset_password_email(
         recepient_email=email,
         recepient_name=user.name,
         reset_id=reset_password.id,
