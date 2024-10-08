@@ -22,6 +22,7 @@ from lib.crud import (
 )
 from lib.helper import (
     Dataset,
+    DocumentAssignment,
     DocumentInformation,
     DocumentParser,
     IndexRequest,
@@ -207,6 +208,30 @@ async def assign_random_annotators_to_documents(dataset_id: str):
     return JSONResponse(
         content={
             "detail": f"Random annotator assignment to documents in dataset with ID {dataset_id} is successful"
+        },
+    )
+
+
+@protected_router.post(
+    "/datasets/{dataset_id}/document-assignment",
+    summary="Get a dataset with dataset-id",
+    tags=["datasets"],
+)
+async def assign_annotators_and_reviewers_to_documents(
+    dataset_id: str, document_assignment_list: List[DocumentAssignment]
+):
+    doc_map = {}
+    for document_assignment in document_assignment_list:
+        doc_id = document_assignment.document_id
+        if doc_id not in doc_map:
+            doc_map[doc_id] = {"id": doc_id}
+        doc_map[doc_id][document_assignment.type] = document_assignment.user_id
+
+    assignments = list(doc_map.values())
+    await update_annotator_document_assignment(assignments)
+    return JSONResponse(
+        content={
+            "detail": f"Annotator/Reviewer assignment to documents in dataset with ID {dataset_id} is successful"
         },
     )
 

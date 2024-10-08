@@ -184,6 +184,12 @@ class Dataset(BaseModel):
     created_at: datetime
 
 
+class DocumentAssignment(BaseModel):
+    type: str  # annotator | reviewer
+    document_id: str
+    user_id: str
+
+
 class RoleCache:
     _instance = None
     roles = []
