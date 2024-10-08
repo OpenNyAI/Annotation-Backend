@@ -9,12 +9,15 @@ from fastapi.security import HTTPBearer
 from indexer.indexing import LangchainIndexer
 from lib.crud import (
     create_dataset,
+    get_annotators,
     get_datasets,
     get_documents_from_dataset_id,
     get_documents_info_from_dataset_id,
+    get_unassigned_annotators_documents,
     get_user_from_username,
     get_user_roles,
     set_indexed_status_to_dataset,
+    update_annotator_document_assignment,
     update_user_roles,
 )
 from lib.helper import (
@@ -125,29 +128,7 @@ async def get_all_datasets():
                 description=dataset.description,
                 status=dataset.status,
                 created_by=username,
-                created_at=dataset.created_at
-            )
-        )
-    return datasets
-
-
-@protected_router.get(
-    "/datasets/{dataset_id}",
-    summary="Get a dataset with dataset-id",
-    tags=["datasets"],
-)
-async def get_dataset_from_id(dataset_id: str):
-    documents = await get_documents_info_from_dataset_id(dataset_id=dataset_id)
-    datasets = []
-    for document in documents:
-        datasets.append(
-            DocumentInformation(
-                id=str(document[0]),
-                file_name=document[1],
-                size=document[2],
-                status=document[3],
-                annotator=document[4],
-                reviewer=document[5],
+                created_at=dataset.created_at,
             )
         )
     return datasets
@@ -182,6 +163,51 @@ async def post_dataset(
     )
     return JSONResponse(
         content={"detail": "Dataset upload is successful"},
+    )
+
+
+@protected_router.get(
+    "/datasets/{dataset_id}",
+    summary="Get a dataset with dataset-id",
+    tags=["datasets"],
+)
+async def get_dataset_from_id(dataset_id: str):
+    documents = await get_documents_info_from_dataset_id(dataset_id=dataset_id)
+    datasets = []
+    for document in documents:
+        datasets.append(
+            DocumentInformation(
+                id=str(document[0]),
+                file_name=document[1],
+                size=document[2],
+                status=document[3],
+                annotator=document[4],
+                reviewer=document[5],
+            )
+        )
+    return datasets
+
+
+# TODO: Improve logic (currently its naive logic)
+@protected_router.post(
+    "/datasets/{dataset_id}/random-annotator-assignment",
+    summary="Get a dataset with dataset-id",
+    tags=["datasets"],
+)
+async def assign_random_annotators_to_documents(dataset_id: str):
+    documents = await get_unassigned_annotators_documents(dataset_id=dataset_id)
+    annotators = await get_annotators()
+    assignments = []
+    for i, document_id in enumerate(documents):
+        annotator_index = i % len(annotators)
+        assignments.append(
+            {"id": document_id[0], "annotator": annotators[annotator_index][0]}
+        )
+    await update_annotator_document_assignment(assignments)
+    return JSONResponse(
+        content={
+            "detail": f"Random annotator assignment to documents in dataset with ID {dataset_id} is successful"
+        },
     )
 
 

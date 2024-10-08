@@ -68,6 +68,34 @@ async def get_user_roles():
     return None
 
 
+async def get_annotators():
+    query = (
+        select(
+            UserRole.user_id,
+            func.count(Document.annotator).label("annotated_documents_count"),
+        )
+        .join(Role, Role.id == UserRole.role_id)
+        .outerjoin(Document, Document.annotator == UserRole.user_id)
+        .where(Role.name == "Annotator")
+        .group_by(UserRole.user_id)
+        .order_by(func.count(Document.annotator).asc())
+    )
+
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.execute(query)
+            annotators = result.all()
+            return annotators
+    return None
+
+
+async def update_annotator_document_assignment(assignments):
+    async with async_session() as session:
+        async with session.begin():
+            await session.execute(update(Document), assignments)
+            await session.commit()
+
+
 async def insert_user_role(user_id: str, role_id: str):
     user_role = UserRole(user_id=user_id, role_id=role_id)
     async with async_session() as session:
@@ -219,6 +247,20 @@ async def get_documents_info_from_dataset_id(dataset_id: str):
     return None
 
 
+async def get_unassigned_annotators_documents(dataset_id: str):
+    query = (
+        select(Document.id)
+        .where(Document.dataset_id == dataset_id)
+        .where(Document.annotator == None)
+    )
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.execute(query)
+            documents_without_annotators = result.fetchall()
+            return documents_without_annotators
+    return None
+
+
 async def get_documents_from_dataset_id(dataset_id: str):
     query = (
         select(
@@ -333,7 +375,9 @@ async def set_flag_to_query(qna_id: str, is_flagged: bool):
 async def set_indexed_status_to_dataset(dataset_id: str):
     async with async_session() as session:
         async with session.begin():
-            query = update(Dataset).where(Dataset.id == dataset_id).values(status="Indexed")
+            query = (
+                update(Dataset).where(Dataset.id == dataset_id).values(status="Indexed")
+            )
             await session.execute(query)
             await session.commit()
 
