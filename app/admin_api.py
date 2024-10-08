@@ -27,11 +27,14 @@ from lib.helper import (
     DocumentParser,
     IndexRequest,
     Mailer,
+    QuestionAnswerList,
     RoleCache,
     User,
     UserRoleUpdate,
     decode_token,
 )
+
+from .user_api import get_question_answers
 
 jwt_http_bearer = HTTPBearer()
 
@@ -68,7 +71,7 @@ async def custom_exception_handler(request, exception):
 @protected_router.get(
     "/all-roles",
     summary="Get all roles with role_id",
-    tags=["roles"],
+    tags=["Roles"],
 )
 async def get_all_roles() -> list[dict]:
     return RoleCache.roles
@@ -77,7 +80,7 @@ async def get_all_roles() -> list[dict]:
 @protected_router.get(
     "/user-roles",
     summary="Get all users with role_id",
-    tags=["roles"],
+    tags=["Roles"],
 )
 async def fetch_user_roles():
     user_role_mapping = await get_user_roles()
@@ -100,7 +103,7 @@ async def fetch_user_roles():
 @protected_router.put(
     "/user-roles",
     summary="Update the users with roles",
-    tags=["roles"],
+    tags=["Roles"],
 )
 async def put_user_roles(user_roles: List[UserRoleUpdate]):
     user_roles = [
@@ -116,7 +119,7 @@ async def put_user_roles(user_roles: List[UserRoleUpdate]):
 @protected_router.get(
     "/datasets",
     summary="Get all datasets",
-    tags=["datasets"],
+    tags=["Datasets"],
 )
 async def get_all_datasets():
     datasets_with_username = await get_datasets()
@@ -138,7 +141,7 @@ async def get_all_datasets():
 @protected_router.post(
     "/datasets",
     summary="Upload a dataset",
-    tags=["datasets"],
+    tags=["Datasets"],
 )
 async def post_dataset(
     request: Request,
@@ -170,7 +173,7 @@ async def post_dataset(
 @protected_router.get(
     "/datasets/{dataset_id}",
     summary="Get a dataset with dataset-id",
-    tags=["datasets"],
+    tags=["Datasets"],
 )
 async def get_dataset_from_id(dataset_id: str):
     documents = await get_documents_info_from_dataset_id(dataset_id=dataset_id)
@@ -193,7 +196,7 @@ async def get_dataset_from_id(dataset_id: str):
 @protected_router.post(
     "/datasets/{dataset_id}/random-annotator-assignment",
     summary="Get a dataset with dataset-id",
-    tags=["datasets"],
+    tags=["Datasets"],
 )
 async def assign_random_annotators_to_documents(dataset_id: str):
     documents = await get_unassigned_annotators_documents(dataset_id=dataset_id)
@@ -215,7 +218,7 @@ async def assign_random_annotators_to_documents(dataset_id: str):
 @protected_router.post(
     "/datasets/{dataset_id}/document-assignment",
     summary="Get a dataset with dataset-id",
-    tags=["datasets"],
+    tags=["Datasets"],
 )
 async def assign_annotators_and_reviewers_to_documents(
     dataset_id: str, document_assignment_list: List[DocumentAssignment]
@@ -236,7 +239,7 @@ async def assign_annotators_and_reviewers_to_documents(
     )
 
 
-@protected_router.post("/indexing", summary="Index a dataset", tags=["datasets"])
+@protected_router.post("/indexing", summary="Index a dataset", tags=["Datasets"])
 async def indexing(
     request: Request,
     index_request: IndexRequest,
@@ -267,6 +270,16 @@ async def indexing(
     return JSONResponse(
         content={"detail": "Dataset indexing is successful"},
     )
+
+
+@protected_router.get(
+    "/qna/document/{document_id}",
+    summary="Get question and answers for a document id",
+    response_model=QuestionAnswerList,
+    tags=["QnA"],
+)
+async def get_question_answers_for_document(document_id: str):
+    return await get_question_answers(document_id)
 
 
 admin_app.include_router(protected_router)
