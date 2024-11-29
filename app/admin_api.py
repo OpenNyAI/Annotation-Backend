@@ -9,6 +9,7 @@ from fastapi.security import HTTPBearer
 from indexer.indexing import LangchainIndexer
 from lib.crud import (
     create_dataset,
+    delete_user_roles,
     get_annotators,
     get_datasets,
     get_documents_from_dataset_id,
@@ -113,6 +114,18 @@ async def put_user_roles(user_roles: List[UserRoleUpdate]):
     await update_user_roles(user_roles=user_roles)
     return JSONResponse(
         content={"detail": "User role updation is successful"},
+    )
+
+
+@protected_router.delete(
+    "/user-roles",
+    summary="Delete all roles for the given users",
+    tags=["Roles"],
+)
+async def delete_roles_of_users(user_id: List[str]):
+    await delete_user_roles(user_ids=user_id)
+    return JSONResponse(
+        content={"detail": "User role deletion is successful"},
     )
 
 

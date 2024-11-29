@@ -117,6 +117,14 @@ async def update_user_roles(user_roles: list):
             await session.commit()
 
 
+async def delete_user_roles(user_ids: list):
+    async with async_session() as session:
+        async with session.begin():
+            delete_query = delete(UserRole).where(UserRole.user_id.in_(user_ids))
+            await session.execute(delete_query)
+            await session.commit()
+
+
 async def create_user(
     name: str, username: str, email: str, password: str, role_id: str
 ):
