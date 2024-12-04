@@ -95,6 +95,7 @@ class BaseDocument(BaseModel):
 class DocumentInformation(BaseDocument):
     size: int
     status: str
+    number_of_queries: str
     annotator: Optional[str]
     reviewer: Optional[str]
 

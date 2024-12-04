@@ -239,6 +239,7 @@ async def get_documents_info_from_dataset_id(dataset_id: str):
             Document.name,
             Document.size,
             Document.status,
+            Document.number_of_queries,
             annotator.username.label("annotator_username"),
             reviewer.username.label("reviewer_username"),
         )

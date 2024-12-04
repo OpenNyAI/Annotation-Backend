@@ -198,8 +198,9 @@ async def get_dataset_from_id(dataset_id: str):
                 file_name=document[1],
                 size=document[2],
                 status=document[3],
-                annotator=document[4],
-                reviewer=document[5],
+                number_of_queries=document[4],
+                annotator=document[5],
+                reviewer=document[6],
             )
         )
     return datasets
