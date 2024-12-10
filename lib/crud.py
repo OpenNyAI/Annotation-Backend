@@ -488,7 +488,7 @@ async def insert_chunk_result(
     qna_id: str, chunk: str, metadata: dict, retriever_name: str
 ) -> ChunkResult:
     chunk_result = ChunkResult(
-        qna_id=qna_id, chunk=chunk, metadata_=metadata, retriever_name=retriever_name
+        qna_id=qna_id, chunk_content=chunk, chunk_metadata=metadata, retriever_name=retriever_name
     )
     async with async_session() as session:
         async with session.begin():
@@ -499,7 +499,7 @@ async def insert_chunk_result(
 
 
 async def get_version(
-    qna_id: str, user_id: str, additional_text: list, generation_response: str
+    qna_id: str, user_id: str, additional_text: list, generation_response: str, status: str
 ) -> Version:
     query = (
         select(Version)
@@ -518,6 +518,7 @@ async def get_version(
                     version_number=1,
                     additional_info=additional_text,
                     generation_response=generation_response,
+                    status=status
                 )
                 session.add(version)
                 await session.commit()

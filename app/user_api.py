@@ -190,7 +190,7 @@ async def get_document_info(document_id: str):
 )
 async def get_documents_for_given_user(request: Request):
     _, token = request.headers.get("authorization").split()
-    user_name = decode_token(token=token)
+    user_name, _ = decode_token(token=token)
     user = await get_user_from_username(username=user_name)
     documents_list = await get_documents_from_user_id(user_id=user.id)
     documents = [
@@ -334,7 +334,7 @@ async def post_qna_for_qna_id(
     qna_id: str, post_qna_request: PostQnARequest, request: Request
 ):
     _, token = request.headers.get("authorization").split()
-    user_name = decode_token(token=token)
+    user_name, _ = decode_token(token=token)
     user = await get_user_from_username(username=user_name)
     # TODO: Fix status here
     version = await insert_new_version(
@@ -412,7 +412,6 @@ async def submit(submit_request: SubmitRequest, request: Request):
     _, token = request.headers.get("authorization").split()
     user_name, _ = decode_token(token=token)
     user = await get_user_from_username(username=user_name)
-    await set_number_queries_to_document(document_id=document_id, user_id=user.id)
     qna = await insert_qna(
         document_id=document_id,
         query=submit_request.query,
@@ -432,6 +431,7 @@ async def submit(submit_request: SubmitRequest, request: Request):
         user_id=user.id,
         additional_text=submit_request.additional_answer,
         generation_response=submit_request.generation_response,
+        status="Annotation",
     )
     for annotated_text in submit_request.annotated_text:
         await insert_annotated_text(
@@ -442,6 +442,7 @@ async def submit(submit_request: SubmitRequest, request: Request):
             end_index=annotated_text.end_index,
             source_text=annotated_text.source_text,
         )
+    await set_number_queries_to_document(document_id=document_id, user_id=user.id)
     return JSONResponse(content="Submitted details successfully")
 
 
